@@ -6,14 +6,22 @@ import android.content.Context
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
+import android.util.Log
 import com.nucleusflow.BuildConfig
 import com.nucleusflow.core.Shell
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import rikka.shizuku.Shizuku
 
 object ShizukuBridge {
+    private const val TAG = "NucleusFlow"
     const val PERMISSION_REQUEST_CODE = 4242
     private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
+    private const val BIND_TIMEOUT_MS = 15_000L
 
     data class State(
         val installed: Boolean = false,
@@ -26,107 +34,181 @@ object ShizukuBridge {
 
     val state = MutableStateFlow(State())
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @Volatile
     private var appContext: Context? = null
+
+    @Volatile
     private var bound = false
+
+    @Volatile
     private var binding = false
-    private var registered = false
+
+    @Volatile
+    private var listenersRegistered = false
 
     private val binderReceived = Shizuku.OnBinderReceivedListener {
-        refreshInternal()
+        Log.i(TAG, "shizuku binder received")
+        refresh()
     }
     private val binderDead = Shizuku.OnBinderDeadListener {
+        Log.w(TAG, "shizuku binder dead")
         Shell.service = null
         bound = false
-        refreshInternal()
+        binding = false
+        refresh()
     }
-    private val permissionResult = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            if (grantResult == PackageManager.PERMISSION_GRANTED) {
-                bindService()
-            }
-            refreshInternal()
+    private val permissionResult =
+        Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+            Log.i(TAG, "permission result code=$requestCode grant=$grantResult")
+            if (requestCode == PERMISSION_REQUEST_CODE) refresh()
         }
-    }
+
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+            Log.i(TAG, "onServiceConnected component=$name binder=$binder")
             val svc = IUserService.Stub.asInterface(binder)
             Shell.service = svc
             binding = false
             bound = svc != null
-            val uid = runCatching { svc?.uid ?: -1 }.getOrDefault(-1)
             state.value = state.value.copy(
                 serviceBound = bound,
-                uid = uid,
-                message = if (bound) "Servicio privilegiado activo (uid $uid)" else "No se pudo obtener el servicio"
+                message = if (bound) "Servicio conectado, leyendo uid…" else "Binder nulo"
             )
+            if (svc != null) {
+                scope.launch {
+                    val uid = runCatching { svc.uid }.getOrDefault(-1)
+                    Log.i(TAG, "user service uid=$uid")
+                    state.value = state.value.copy(
+                        serviceBound = true,
+                        uid = uid,
+                        message = if (uid >= 0) "Servicio privilegiado activo (uid $uid)"
+                        else "Servicio conectado pero uid no disponible"
+                    )
+                }
+            }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
+            Log.w(TAG, "onServiceDisconnected component=$name")
             Shell.service = null
             bound = false
             binding = false
-            state.value = state.value.copy(serviceBound = false, uid = -1, message = "Servicio desconectado")
+            state.value = state.value.copy(
+                serviceBound = false,
+                uid = -1,
+                message = "Servicio desconectado"
+            )
         }
     }
 
     fun init(context: Context) {
-        val ctx = context.applicationContext
-        appContext = ctx
-        if (!registered) {
-            registered = true
-            runCatching {
-                Shizuku.addBinderReceivedListenerSticky(binderReceived)
-                Shizuku.addBinderDeadListener(binderDead)
-                Shizuku.addRequestPermissionResultListener(permissionResult)
-            }
-        }
-        refreshInternal()
+        appContext = context.applicationContext
+        ensureListeners()
+        refresh()
     }
 
-    fun refresh() = refreshInternal()
+    fun refresh() {
+        ensureListeners()
+        scope.launch { refreshBlocking() }
+    }
 
     fun requestPermission(activity: Activity) {
-        if (!state.value.running) {
-            state.value = state.value.copy(message = "Shizuku no está en ejecución. Ábrelo y actívalo.")
-            return
-        }
-        if (state.value.permission) {
-            bindService()
-            return
-        }
-        try {
-            Shizuku.requestPermission(PERMISSION_REQUEST_CODE)
-            state.value = state.value.copy(message = "Solicitando permiso a Shizuku…")
-        } catch (t: Throwable) {
-            state.value = state.value.copy(message = "Error al solicitar permiso: ${t.message}")
+        scope.launch {
+            val running = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
+            if (!running) {
+                state.value = state.value.copy(
+                    message = "Shizuku no está en ejecución. Ábrelo y actívalo."
+                )
+                return@launch
+            }
+            val granted = runCatching {
+                Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+            }.getOrDefault(false)
+            if (granted) {
+                refreshBlocking()
+                return@launch
+            }
+            try {
+                Shizuku.requestPermission(PERMISSION_REQUEST_CODE)
+                state.value = state.value.copy(message = "Solicitando permiso a Shizuku…")
+            } catch (t: Throwable) {
+                Log.w(TAG, "requestPermission failed", t)
+                state.value = state.value.copy(
+                    message = "Error al solicitar permiso: ${t.message}"
+                )
+            }
         }
     }
 
-    private fun refreshInternal() {
+    fun probe(): String {
+        val ctx = appContext ?: return "sin contexto"
+        val sb = StringBuilder()
+        sb.append("installed=").append(
+            runCatching { ctx.packageManager.getPackageInfo(SHIZUKU_PACKAGE, 0); true }
+                .getOrDefault(false)
+        ).append('\n')
+        sb.append("pingBinder=")
+            .append(runCatching { Shizuku.pingBinder() }.getOrNull()).append('\n')
+        sb.append("version=")
+            .append(runCatching { Shizuku.getVersion() }.getOrNull()).append('\n')
+        sb.append("checkSelfPermission=")
+            .append(runCatching { Shizuku.checkSelfPermission() }.getOrNull()).append('\n')
+        sb.append("uid(app)=").append(android.os.Process.myUid()).append('\n')
+        sb.append("bound=").append(bound).append(" binding=").append(binding).append('\n')
+        val a = runCatching { buildArgs(ctx) }.getOrNull()
+        if (a != null) {
+            sb.append("suffix=service version=").append(BuildConfig.VERSION_CODE).append('\n')
+            sb.append("peek=")
+                .append(runCatching { Shizuku.peekUserService(a, connection) }.getOrNull())
+                .append('\n')
+        }
+        return sb.toString()
+    }
+
+    private fun ensureListeners() {
+        if (listenersRegistered) return
+        try {
+            Shizuku.addBinderReceivedListenerSticky(binderReceived)
+            Shizuku.addBinderDeadListener(binderDead)
+            Shizuku.addRequestPermissionResultListener(permissionResult)
+            listenersRegistered = true
+            Log.i(TAG, "shizuku listeners registered")
+        } catch (t: Throwable) {
+            Log.w(TAG, "listener registration failed: ${t.message}")
+        }
+    }
+
+    private fun refreshBlocking() {
         val ctx = appContext ?: return
         val installed = runCatching {
             ctx.packageManager.getPackageInfo(SHIZUKU_PACKAGE, 0)
             true
         }.getOrDefault(false)
-
-        val running = runCatching {
-            Shizuku.pingBinder()
-        }.getOrDefault(false)
-
+        val running = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
+        val version = runCatching { Shizuku.getVersion() }.getOrDefault(-1)
         val permission = running && runCatching {
             Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
         }.getOrDefault(false)
 
-        if (running && permission && (Shell.service == null || !bound)) {
-            bindService()
+        Log.i(
+            TAG,
+            "refresh installed=$installed running=$running version=$version " +
+                "permission=$permission bound=$bound binding=$binding"
+        )
+
+        if (running && permission && !bound && !binding) {
+            startBind()
         }
 
         val msg = when {
             !installed -> "Shizuku no está instalado"
             !running -> "Shizuku instalado pero no en ejecución"
             !permission -> "Permiso de Shizuku pendiente"
-            bound -> "Conectado a Shizuku (uid ${state.value.uid})"
-            else -> "Conectando servicio privilegiado…"
+            bound && Shell.service != null -> "Conectado a Shizuku (uid ${state.value.uid})"
+            binding -> "Conectando servicio privilegiado…"
+            else -> "Servicio no conectado. Pulsa Reconectar."
         }
 
         state.value = state.value.copy(
@@ -138,23 +220,43 @@ object ShizukuBridge {
         )
     }
 
-    private fun bindService() {
+    private fun buildArgs(ctx: Context): Shizuku.UserServiceArgs =
+        Shizuku.UserServiceArgs(ComponentName(ctx, NucleusUserService::class.java))
+            .daemon(false)
+            .processNameSuffix("service")
+            .debuggable(BuildConfig.DEBUG)
+            .version(BuildConfig.VERSION_CODE)
+
+    private fun startBind() {
         val ctx = appContext ?: return
-        if (bound || binding) return
+        val args = try {
+            buildArgs(ctx)
+        } catch (t: Throwable) {
+            state.value = state.value.copy(message = "Error creando args: ${t.message}")
+            return
+        }
         binding = true
+        state.value = state.value.copy(message = "Conectando servicio privilegiado…")
         try {
-            val args = Shizuku.UserServiceArgs(
-                ComponentName(ctx, NucleusUserService::class.java)
-            )
-                .daemon(false)
-                .processNameSuffix("privileged")
-                .debuggable(BuildConfig.DEBUG)
-                .version(1)
             Shizuku.bindUserService(args, connection)
-            state.value = state.value.copy(message = "Conectando servicio privilegiado…")
+            Log.i(TAG, "bindUserService called")
         } catch (t: Throwable) {
             binding = false
+            Log.w(TAG, "bindUserService failed", t)
             state.value = state.value.copy(message = "Error al conectar servicio: ${t.message}")
+            return
+        }
+        scope.launch {
+            delay(BIND_TIMEOUT_MS)
+            if (!bound && binding) {
+                val peek = runCatching { Shizuku.peekUserService(args, connection) }.getOrNull()
+                Log.w(TAG, "bind timeout, peek=$peek")
+                binding = false
+                runCatching { Shizuku.unbindUserService(args, connection, false) }
+                state.value = state.value.copy(
+                    message = "El UserService no arrancó (peek=$peek). Revisa el log de Shizuku."
+                )
+            }
         }
     }
 }

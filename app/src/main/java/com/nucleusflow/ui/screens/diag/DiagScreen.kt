@@ -73,6 +73,13 @@ fun DiagScreen() {
                         }
                     }) { Text("Escritura sysfs") }
                     OutlinedButton(onClick = { run("Paquetes", "pm list packages -3 2>&1 | head -40") }) { Text("Apps") }
+                    OutlinedButton(onClick = {
+                        scope.launch {
+                            output = "» Shizuku\n\n" + withContext(Dispatchers.IO) {
+                                ShizukuBridge.probe()
+                            }
+                        }
+                    }) { Text("Shizuku") }
                 }
                 ResultBanner(result, resultOk)
             }

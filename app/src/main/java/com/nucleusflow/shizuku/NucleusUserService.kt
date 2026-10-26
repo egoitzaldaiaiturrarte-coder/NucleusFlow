@@ -1,12 +1,22 @@
 package com.nucleusflow.shizuku
 
 import android.os.IBinder
+import android.util.Log
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
 class NucleusUserService : IUserService.Stub() {
-    override fun destroy() {}
-    override fun exit() {}
+    init {
+        Log.i("NucleusFlow", "NucleusUserService created uid=${android.os.Process.myUid()} pid=${android.os.Process.myPid()}")
+    }
+
+    override fun destroy() {
+        Log.i("NucleusFlow", "NucleusUserService destroy")
+    }
+
+    override fun exit() {
+        Log.i("NucleusFlow", "NucleusUserService exit")
+    }
 
     override fun exec(cmd: String): String {
         return try {

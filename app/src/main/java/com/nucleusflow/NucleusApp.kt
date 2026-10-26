@@ -1,6 +1,7 @@
 package com.nucleusflow
 
 import android.app.Application
+import android.util.Log
 import com.nucleusflow.core.Shell
 import com.nucleusflow.shizuku.ShizukuBridge
 import kotlinx.coroutines.CoroutineScope
@@ -13,7 +14,10 @@ class NucleusApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        if (isPrivilegedServiceProcess()) return
+        if (isPrivilegedServiceProcess()) {
+            Log.i("NucleusFlow", "skipping app init in service process ${runCatching { java.io.File("/proc/self/cmdline").readText().trim('\u0000') }.getOrNull()}")
+            return
+        }
         ShizukuBridge.init(this)
         scope.launch { Shell.detectRoot() }
     }
