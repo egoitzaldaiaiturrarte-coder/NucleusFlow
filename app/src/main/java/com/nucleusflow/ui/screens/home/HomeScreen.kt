@@ -18,6 +18,7 @@ import com.nucleusflow.shizuku.ShizukuBridge
 import com.nucleusflow.ui.components.ResultBanner
 import com.nucleusflow.ui.components.StatusPill
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen() {
@@ -29,6 +30,7 @@ fun HomeScreen() {
     val busy by AppState.busy.collectAsState()
     var result by remember { mutableStateOf<String?>(null) }
     var resultOk by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         AppState.refreshAll(includeProcesses = false)
@@ -138,16 +140,20 @@ fun HomeScreen() {
                 Text("Acciones rápidas", style = MaterialTheme.typography.titleMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = {
-                        val r = Actions.compactMemory()
-                        result = r.message
-                        resultOk = r.ok
-                        AppState.refreshAll(includeProcesses = false)
+                        scope.launch {
+                            val r = Actions.compactMemory()
+                            result = r.message
+                            resultOk = r.ok
+                            AppState.refreshAll(includeProcesses = false)
+                        }
                     }) { Text("Compactar") }
                     OutlinedButton(onClick = {
-                        val r = Actions.dropCaches()
-                        result = r.message
-                        resultOk = r.ok
-                        AppState.refreshAll(includeProcesses = false)
+                        scope.launch {
+                            val r = Actions.dropCaches()
+                            result = r.message
+                            resultOk = r.ok
+                            AppState.refreshAll(includeProcesses = false)
+                        }
                     }) { Text("Liberar caché") }
                 }
                 ResultBanner(result, resultOk)

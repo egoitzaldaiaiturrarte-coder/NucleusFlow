@@ -1,6 +1,8 @@
 package com.nucleusflow.ui.screens.diag
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -18,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DiagScreen() {
     val shizuku by ShizukuBridge.state.collectAsState()
@@ -87,16 +90,4 @@ fun DiagScreen() {
             }
         }
     }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun FlowRow(
-    horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
-    content: @Composable androidx.compose.foundation.layout.FlowRowScope.() -> Unit
-) {
-    androidx.compose.foundation.layout.FlowRow(
-        horizontalArrangement = horizontalArrangement,
-        content = content
-    )
 }
