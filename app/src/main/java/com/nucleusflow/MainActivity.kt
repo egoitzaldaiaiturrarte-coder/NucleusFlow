@@ -22,6 +22,7 @@ import com.nucleusflow.ui.screens.integration.IntegrationScreen
 import com.nucleusflow.ui.screens.memory.MemoryScreen
 import com.nucleusflow.ui.screens.perapp.PerAppScreen
 import com.nucleusflow.ui.screens.processes.ProcessesScreen
+import com.nucleusflow.shizuku.ShizukuBridge
 import com.nucleusflow.ui.theme.NucleusFlowTheme
 
 sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
@@ -36,6 +37,11 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
+    override fun onResume() {
+        super.onResume()
+        ShizukuBridge.refresh()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {

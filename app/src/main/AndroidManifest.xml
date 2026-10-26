@@ -11,6 +11,7 @@
 
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
+        <package android:name="com.droidbridge.standalone" />
     </queries>
 
     <application
@@ -44,7 +45,7 @@
         <service
             android:name=".shizuku.NucleusUserService"
             android:exported="true"
-            android:permission="android.permission.BIND_USER_SERVICE"
+            android:process=":privileged"
             tools:ignore="ExportedService">
             <intent-filter>
                 <action android:name="moe.shizuku.api.UserService" />

@@ -31,6 +31,15 @@ android {
         }
     }
 
+    signingConfigs {
+        create("fixedDebug") {
+            storeFile = rootProject.file("nucleus-debug.p12")
+            storePassword = "nucleusflow"
+            keyAlias = "nucleus"
+            keyPassword = "nucleusflow"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -41,6 +50,7 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("fixedDebug")
         }
     }
 

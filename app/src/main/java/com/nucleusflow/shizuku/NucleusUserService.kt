@@ -1,7 +1,6 @@
 package com.nucleusflow.shizuku
 
 import android.os.IBinder
-import rikka.shizuku.Shizuku
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
