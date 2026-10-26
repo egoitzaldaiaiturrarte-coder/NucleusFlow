@@ -29,6 +29,7 @@ object ShizukuBridge {
         val running: Boolean = false,
         val permission: Boolean = false,
         val serviceBound: Boolean = false,
+        val privileged: Boolean = false,
         val uid: Int = -1,
         val message: String = "Sin inicializar"
     )
@@ -48,6 +49,9 @@ object ShizukuBridge {
 
     @Volatile
     private var listenersRegistered = false
+
+    @Volatile
+    private var probeChecked = false
 
     private val binderReceived = Shizuku.OnBinderReceivedListener {
         Log.i(TAG, "shizuku binder received")
@@ -143,6 +147,13 @@ object ShizukuBridge {
         }
     }
 
+    private fun appendDiag(ctx: Context, text: String) {
+        runCatching {
+            val f = java.io.File(ctx.getExternalFilesDir(null), "diagnostics.txt")
+            f.appendText(text + "\n")
+        }
+    }
+
     fun probe(): String {
         val ctx = appContext ?: return "sin contexto"
         val sb = StringBuilder()
@@ -160,6 +171,12 @@ object ShizukuBridge {
         sb.append("bound=").append(bound).append(" binding=").append(binding).append('\n')
         sb.append("newProcess=")
             .append(runCatching { execPrivileged("id") }.getOrNull()).append('\n')
+        sb.append("markers=")
+            .append(
+                runCatching {
+                    execPrivileged("echo A; cat /proc/loadavg; echo B; cat /proc/uptime; echo C")
+                }.getOrNull()
+            ).append('\n')
         val a = runCatching { buildArgs(ctx) }.getOrNull()
         if (a != null) {
             sb.append("suffix=service version=").append(BuildConfig.VERSION_CODE).append('\n')
@@ -167,7 +184,9 @@ object ShizukuBridge {
                 .append(runCatching { Shizuku.peekUserService(a, connection) }.getOrNull())
                 .append('\n')
         }
-        return sb.toString()
+        val result = sb.toString()
+        appendDiag(ctx, "=== probe ===\n$result")
+        return result
     }
 
     fun execPrivileged(cmd: String): String? {
@@ -227,24 +246,37 @@ object ShizukuBridge {
                 "permission=$permission bound=$bound binding=$binding"
         )
 
-        if (running && permission && !bound && !binding) {
-            startBind()
+        var privileged = state.value.privileged
+        var uid = state.value.uid
+        if (running && permission && !privileged) {
+            val id = runCatching { execPrivileged("id") }.getOrNull()
+            Log.i(TAG, "privileged check: $id")
+            val m = Regex("uid=(\\d+)").find(id.orEmpty())
+            if (m != null) {
+                privileged = true
+                uid = m.groupValues[1].toIntOrNull() ?: -1
+                appendDiag(ctx, "privileged ok uid=$uid")
+            } else {
+                appendDiag(ctx, "privileged check failed: $id")
+            }
+            probeChecked = true
         }
 
         val msg = when {
             !installed -> "Shizuku no está instalado"
             !running -> "Shizuku instalado pero no en ejecución"
             !permission -> "Permiso de Shizuku pendiente"
-            bound && Shell.service != null -> "Conectado a Shizuku (uid ${state.value.uid})"
-            binding -> "Conectando servicio privilegiado…"
-            else -> "Servicio no conectado. Pulsa Reconectar."
+            privileged -> "Shell privilegiado activo (uid $uid). Escrituras sysfs pueden requerir root."
+            else -> "Shizuku activo, pero sin shell privilegiado"
         }
 
         state.value = state.value.copy(
             installed = installed,
             running = running,
             permission = permission,
+            privileged = privileged,
             serviceBound = bound && Shell.service != null,
+            uid = uid,
             message = msg
         )
     }

@@ -39,7 +39,7 @@ fun CoresScreen() {
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Núcleos & Frecuencia", style = MaterialTheme.typography.titleLarge)
-            StatusPill(if (shizuku.serviceBound) "ESCRITURA" else "SOLO LECTURA", shizuku.serviceBound)
+            StatusPill(if (shizuku.privileged) "SHIZUKU" else "LOCAL", shizuku.privileged)
         }
         if (cores.isEmpty()) {
             Card { Column(Modifier.padding(16.dp)) {

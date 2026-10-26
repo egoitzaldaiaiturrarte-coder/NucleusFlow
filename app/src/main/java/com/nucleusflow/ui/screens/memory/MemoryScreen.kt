@@ -32,7 +32,7 @@ fun MemoryScreen() {
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Memoria & Swap", style = MaterialTheme.typography.titleLarge)
-            StatusPill(if (shizuku.serviceBound) "ESCRITURA" else "SOLO LECTURA", shizuku.serviceBound)
+            StatusPill(if (shizuku.privileged) "SHIZUKU" else "LOCAL", shizuku.privileged)
         }
 
         Card {

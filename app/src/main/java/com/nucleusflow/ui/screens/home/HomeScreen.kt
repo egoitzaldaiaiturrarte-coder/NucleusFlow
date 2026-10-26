@@ -36,15 +36,15 @@ fun HomeScreen() {
         AppState.refreshAll(includeProcesses = false)
         while (true) {
             delay(3000)
-            if (ShizukuBridge.state.value.serviceBound) {
+            if (ShizukuBridge.state.value.privileged) {
                 AppState.refreshAll(includeProcesses = false)
             }
         }
     }
 
-    val active = shizuku.serviceBound
+    val active = shizuku.privileged || Shell.rootAvailable
     val mode = when {
-        shizuku.serviceBound -> "Activo · Shizuku (uid ${shizuku.uid})"
+        shizuku.privileged -> "Activo · shell Shizuku (uid ${shizuku.uid})"
         Shell.rootAvailable -> "Activo · Root"
         else -> "Inactivo · sin privilegios"
     }
@@ -79,7 +79,7 @@ fun HomeScreen() {
                         },
                         enabled = true
                     ) {
-                        Text(if (active) "Reconectar" else "Conectar con Shizuku")
+                        Text(if (active) "Refrescar estado" else "Conectar con Shizuku")
                     }
                     OutlinedButton(
                         onClick = {
@@ -94,9 +94,10 @@ fun HomeScreen() {
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                if (shizuku.permission && !shizuku.serviceBound) {
+                if (shizuku.privileged) {
                     Text(
-                        "Permiso concedido. Si no conecta, pulsa Reconectar.",
+                        "Shell de Shizuku operativo. CPU/gobernador y memoria se leen en vivo; " +
+                            "algunas escrituras sysfs solo funcionan con root.",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

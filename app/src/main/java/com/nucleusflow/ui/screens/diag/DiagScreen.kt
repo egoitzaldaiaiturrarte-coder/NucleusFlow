@@ -44,7 +44,7 @@ fun DiagScreen() {
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Diagnóstico", style = MaterialTheme.typography.titleLarge)
-            StatusPill(if (shizuku.serviceBound) "SHIZUKU ${shizuku.uid}" else "SIN SERVICIO", shizuku.serviceBound)
+            StatusPill(if (shizuku.privileged) "SHIZUKU ${shizuku.uid}" else "SIN SERVICIO", shizuku.privileged)
         }
 
         Card {

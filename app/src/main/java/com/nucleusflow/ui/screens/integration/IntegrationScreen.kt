@@ -62,7 +62,7 @@ fun IntegrationScreen() {
                 EnvRow("Shizuku instalado", shizuku.installed)
                 EnvRow("Shizuku en ejecución", shizuku.running)
                 EnvRow("Permiso Shizuku", shizuku.permission)
-                EnvRow("Servicio privilegiado (${shizuku.uid})", shizuku.serviceBound)
+                EnvRow("Shell privilegiado (${shizuku.uid})", shizuku.privileged)
                 EnvRow("DroidBridge instalado", droidBridge, note = "detectado como puente alternativo")
                 EnvRow("Root (su)", root)
                 Text("Modo de ejecución actual: ${Shell.lastMode}", style = MaterialTheme.typography.bodySmall)
