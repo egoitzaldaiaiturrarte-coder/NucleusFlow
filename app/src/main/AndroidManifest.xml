@@ -43,16 +43,6 @@
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
         <service
-            android:name=".shizuku.NucleusUserService"
-            android:exported="true"
-            android:process=":privileged"
-            tools:ignore="ExportedService">
-            <intent-filter>
-                <action android:name="moe.shizuku.api.UserService" />
-            </intent-filter>
-        </service>
-
-        <service
             android:name=".service.ProtectionService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
