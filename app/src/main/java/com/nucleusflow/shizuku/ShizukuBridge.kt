@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.launch
 import rikka.shizuku.Shizuku
 
@@ -157,6 +158,8 @@ object ShizukuBridge {
             .append(runCatching { Shizuku.checkSelfPermission() }.getOrNull()).append('\n')
         sb.append("uid(app)=").append(android.os.Process.myUid()).append('\n')
         sb.append("bound=").append(bound).append(" binding=").append(binding).append('\n')
+        sb.append("newProcess=")
+            .append(runCatching { execPrivileged("id") }.getOrNull()).append('\n')
         val a = runCatching { buildArgs(ctx) }.getOrNull()
         if (a != null) {
             sb.append("suffix=service version=").append(BuildConfig.VERSION_CODE).append('\n')
@@ -165,6 +168,32 @@ object ShizukuBridge {
                 .append('\n')
         }
         return sb.toString()
+    }
+
+    fun execPrivileged(cmd: String): String? {
+        if (!state.value.running) return null
+        return try {
+            val method = Shizuku::class.java.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            )
+            method.isAccessible = true
+            val process = method.invoke(null, arrayOf("sh", "-c", cmd), null, null) as Process
+            val out = StringBuilder()
+            process.inputStream.bufferedReader().use { it.forEachLine { l -> out.append(l).append('\n') } }
+            process.errorStream.bufferedReader().use { it.forEachLine { l -> out.append("ERR:").append(l).append('\n') } }
+            if (!process.waitFor(10, TimeUnit.SECONDS)) {
+                process.destroyForcibly()
+                "$out\nERR:timeout"
+            } else {
+                out.toString()
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "newProcess failed", t)
+            "ERR:newProcess ${t.javaClass.simpleName}: ${t.message}"
+        }
     }
 
     private fun ensureListeners() {

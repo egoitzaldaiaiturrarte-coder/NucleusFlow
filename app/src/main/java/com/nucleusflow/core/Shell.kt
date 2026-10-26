@@ -1,6 +1,7 @@
 package com.nucleusflow.core
 
 import com.nucleusflow.shizuku.IUserService
+import com.nucleusflow.shizuku.ShizukuBridge
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
@@ -30,6 +31,11 @@ object Shell {
                 lastMode = "local"
                 "ERR:${t.message}"
             }
+        }
+        val privileged = ShizukuBridge.execPrivileged(cmd)
+        if (privileged != null && !privileged.startsWith("ERR:newProcess")) {
+            lastMode = "shizuku"
+            return privileged
         }
         if (rootAvailable) {
             lastMode = "root"
