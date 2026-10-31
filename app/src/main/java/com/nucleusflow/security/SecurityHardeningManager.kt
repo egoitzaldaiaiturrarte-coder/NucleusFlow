@@ -35,7 +35,7 @@ object SecurityHardeningManager {
         "ls ", "ps ", "top ", "dumpsys ", "pm ", "am ", "getprop ", "settings ",
         "input ", "screencap ", "screenrecord ", "cat ", "grep ", "id ", "whoami ",
         "uname ", "uptime ", "free ", "df ", "ifconfig ", "ip ", "ping ",
-        "netstat ", "ss ", "logcat "
+        "netstat ", "ss ", "logcat ", "CHAT "
     )
 
     // ---- Estado de integridad ----

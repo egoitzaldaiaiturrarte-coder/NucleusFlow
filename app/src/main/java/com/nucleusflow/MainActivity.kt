@@ -15,6 +15,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.nucleusflow.ui.screens.chat.ChatScreen
 import com.nucleusflow.ui.screens.cloud.CloudScreen
 import com.nucleusflow.ui.screens.compute.ComputeScreen
 import com.nucleusflow.ui.screens.cores.CoresScreen
@@ -35,6 +36,7 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     data object Integration : Screen("integration", "Integración", Icons.Default.Sync)
     data object Diag : Screen("diag", "Diagnóstico", Icons.Default.BugReport)
     data object Cloud : Screen("cloud", "Nube", Icons.Default.Cloud)
+    data object Chat : Screen("chat", "Chat", Icons.Default.Chat)
     data object Compute : Screen("compute", "Proceso", Icons.Default.Computer)
 }
 
@@ -45,7 +47,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             NucleusFlowTheme {
                 val navController = rememberNavController()
-                val items = listOf(Screen.Home, Screen.Cores, Screen.Processes, Screen.PerApp, Screen.Memory, Screen.Integration, Screen.Diag, Screen.Cloud, Screen.Compute)
+                val items = listOf(Screen.Home, Screen.Cores, Screen.Processes, Screen.PerApp, Screen.Memory, Screen.Integration, Screen.Diag, Screen.Cloud, Screen.Chat, Screen.Compute)
                 Scaffold(
                     topBar = { TopAppBar(title = { Text("NucleusFlow") }) },
                     bottomBar = {
@@ -79,6 +81,7 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Diag.route) { DiagScreen() }
                         composable(Screen.Cloud.route) { CloudScreen() }
                         composable(Screen.Compute.route) { ComputeScreen() }
+                        composable(Screen.Chat.route) { ChatScreen() }
                     }
                 }
             }
