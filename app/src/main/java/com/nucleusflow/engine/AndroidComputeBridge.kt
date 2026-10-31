@@ -34,6 +34,10 @@ object AndroidComputeBridge {
     private val _listenOnAllInterfaces = MutableStateFlow(false)
     val listenOnAllInterfaces: StateFlow<Boolean> = _listenOnAllInterfaces.asStateFlow()
 
+    fun setListenOnAllInterfaces(listen: Boolean) {
+        _listenOnAllInterfaces.value = listen
+    }
+
     private var serverSocket: ServerSocket? = null
 
     private var failures = 0

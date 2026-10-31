@@ -1,6 +1,7 @@
 package com.nucleusflow.security
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
@@ -45,7 +46,7 @@ object SecurityHardeningManager {
 
     fun init(context: Context) {
         try {
-            _isDebuggable = (context.applicationInfo.flags and PackageManager.FLAG_DEBUGGABLE) != 0
+            _isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
             _isEmulator = Build.FINGERPRINT.contains("generic") ||
                 Build.FINGERPRINT.contains("unknown") ||
                 Build.HARDWARE.contains("goldfish") ||
