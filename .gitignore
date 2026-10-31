@@ -1,0 +1,23 @@
+# Distribuciones Gradle locales (pesadas / corruptas)
+*.zip
+gradle-8.5/
+
+# Build
+.gradle/
+build/
+app/build/
+.cxx/
+.externalNativeBuild/
+local.properties
+*.apk
+
+# IDE
+.idea/
+
+# Secretos (nunca al repo)
+secure/
+*.jks
+*.keystore
+
+# Logs
+*.log

@@ -1,6 +1,5 @@
 package com.nucleusflow.ui.screens.cores
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -8,141 +7,68 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.nucleusflow.core.Actions
-import com.nucleusflow.core.AppState
-import com.nucleusflow.core.CoreInfo
-import com.nucleusflow.core.SysProbe
-import com.nucleusflow.shizuku.ShizukuBridge
-import com.nucleusflow.ui.components.ResultBanner
-import com.nucleusflow.ui.components.StatusPill
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.nucleusflow.engine.KernelManager
+import com.nucleusflow.ui.components.ProExplainModal
 
 @Composable
 fun CoresScreen() {
-    val cores by AppState.cores.collectAsState()
-    val shizuku by ShizukuBridge.state.collectAsState()
-    var result by remember { mutableStateOf<String?>(null) }
-    var resultOk by remember { mutableStateOf(true) }
+    val clusters by KernelManager.clusters.collectAsState()
+    val cores by KernelManager.cores.collectAsState()
+    var showExplanation by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        AppState.refreshAll(includeProcesses = false)
-        while (true) {
-            delay(4000)
-            AppState.refreshAll(includeProcesses = false)
-        }
+        KernelManager.scanCores()
     }
 
-    Column(
-        Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Núcleos & Frecuencia", style = MaterialTheme.typography.titleLarge)
-            StatusPill(if (shizuku.privileged) "SHIZUKU" else "LOCAL", shizuku.privileged)
-        }
-        if (cores.isEmpty()) {
-            Card { Column(Modifier.padding(16.dp)) {
-                Text("Leyendo topología de CPU…")
-                Text("Si persiste, conecta Shizuku en Inicio.", style = MaterialTheme.typography.bodySmall)
-            } }
-        }
-        cores.forEach { core ->
-            CoreCard(core) { msg, ok ->
-                result = msg
-                resultOk = ok
-                AppState.refreshAll(includeProcesses = false)
+            TextButton(onClick = { showExplanation = true }) {
+                Text("Explicación Pro")
             }
         }
-        ResultBanner(result, resultOk)
-    }
-}
 
-@Composable
-private fun CoreCard(core: CoreInfo, onResult: (String, Boolean) -> Unit) {
-    val freqList = remember(core.frequencies) {
-        val f = core.frequencies.sorted()
-        if (f.isEmpty()) listOf(core.minFreq, core.maxFreq).filter { it > 0 }.distinct().sorted() else f
-    }
-    var targetIndex by remember(core.maxFreq, freqList) {
-        val idx = freqList.indexOfFirst { it >= core.maxFreq }
-        mutableStateOf(if (idx >= 0) idx else freqList.lastIndex.coerceAtLeast(0))
-    }
-    var governor by remember(core.governor) { mutableStateOf(core.governor) }
-    var busy by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+        if (clusters.isEmpty()) {
+            Card { Column(Modifier.padding(16.dp)) { Text("Escaneando topología de núcleos...") } }
+        }
 
-    Card {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("CPU ${core.index}", style = MaterialTheme.typography.titleMedium)
-                Text(SysProbe.formatHz(core.curFreq), style = MaterialTheme.typography.titleMedium)
-            }
-            Text(
-                "min ${SysProbe.formatHz(core.minFreq)} · max ${SysProbe.formatHz(core.maxFreq)} · hw ${SysProbe.formatHz(core.hwMax)}",
-                style = MaterialTheme.typography.bodySmall
-            )
-            if (freqList.size > 1) {
-                Text(
-                    "Máx objetivo: ${SysProbe.formatHz(freqList[targetIndex])}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Slider(
-                    value = targetIndex.toFloat(),
-                    onValueChange = { targetIndex = it.toInt().coerceIn(0, freqList.lastIndex) },
-                    valueRange = 0f..freqList.lastIndex.toFloat(),
-                    steps = (freqList.size - 2).coerceAtLeast(0)
-                )
-            }
-            if (core.governors.isNotEmpty()) {
-                Row(
-                    Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    core.governors.forEach { g ->
-                        FilterChip(
-                            selected = governor == g,
-                            onClick = { governor = g },
-                            label = { Text(g) }
-                        )
+        clusters.forEach { cluster ->
+            Card {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Clúster ${cluster.clusterId} (Cores: ${cluster.coreIds.joinToString()})", style = MaterialTheme.typography.titleMedium)
+                    Text("Governor actual: ${cluster.governor}")
+                    Text("Frecuencia Máxima: ${cluster.maxFreq / 1000} MHz")
+
+                    Text("Cambiar Governor:", style = MaterialTheme.typography.labelMedium)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        cluster.availableGovernors.take(4).forEach { gov ->
+                            Button(
+                                onClick = { KernelManager.setClusterGovernor(cluster.clusterId, gov) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (cluster.governor == gov) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                                )
+                            ) {
+                                Text(gov)
+                            }
+                        }
                     }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    enabled = !busy,
-                    onClick = {
-                        busy = true
-                        scope.launch {
-                            var ok = true
-                            val msgs = StringBuilder()
-                            if (freqList.isNotEmpty()) {
-                                val r = Actions.setFreq(core.index, null, freqList[targetIndex])
-                                ok = ok && r.ok
-                                msgs.append(r.message).append('\n')
-                            }
-                            if (governor.isNotBlank() && governor != core.governor) {
-                                val r = Actions.setGovernor(core.index, governor)
-                                ok = ok && r.ok
-                                msgs.append(r.message).append('\n')
-                            }
-                            onResult(if (msgs.isBlank()) "Sin cambios" else msgs.toString().trim(), ok)
-                            busy = false
-                        }
-                    }
-                ) { Text(if (busy) "…" else "Aplicar") }
-                OutlinedButton(
-                    enabled = !busy && freqList.isNotEmpty(),
-                    onClick = {
-                        busy = true
-                        scope.launch {
-                            val r = Actions.setFreq(core.index, freqList.first(), freqList.last())
-                            onResult(r.message, r.ok)
-                            busy = false
-                        }
-                    }
-                ) { Text("Restaurar") }
-            }
+        }
+
+        if (showExplanation) {
+            ProExplainModal(
+                title = "Control de Núcleos y Frecuencias",
+                description = "Permite gestionar el gobernador de CPU y los límites de frecuencia por clúster.",
+                howManaged = "Modifica archivos en /sys/devices/system/cpu/cpu*/cpufreq/",
+                path = "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor",
+                method = "Escritura directa vía Root/Shizuku o NativeCore",
+                impact = "Optimiza rendimiento o consumo energético según el perfil elegido.",
+                reversible = "Sí, totalmente reversible mediante restauración de snapshot o selección manual.",
+                support = "Dependiente del kernel y soporte de drivers cpufreq.",
+                notes = "Valores no compatibles son rechazados por el kernel automáticamente.",
+                onDismiss = { showExplanation = false }
+            )
         }
     }
 }

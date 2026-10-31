@@ -12,7 +12,9 @@ find_library(
         log
 )
 
-target_link_libraries(
-        nucleusflow
-        ${log-lib}
-)
+if(log-lib)
+    target_link_libraries(
+            nucleusflow
+            ${log-lib}
+    )
+endif()

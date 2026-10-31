@@ -15,6 +15,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.nucleusflow.ui.screens.cloud.CloudScreen
+import com.nucleusflow.ui.screens.compute.ComputeScreen
 import com.nucleusflow.ui.screens.cores.CoresScreen
 import com.nucleusflow.ui.screens.diag.DiagScreen
 import com.nucleusflow.ui.screens.home.HomeScreen
@@ -22,7 +24,6 @@ import com.nucleusflow.ui.screens.integration.IntegrationScreen
 import com.nucleusflow.ui.screens.memory.MemoryScreen
 import com.nucleusflow.ui.screens.perapp.PerAppScreen
 import com.nucleusflow.ui.screens.processes.ProcessesScreen
-import com.nucleusflow.shizuku.ShizukuBridge
 import com.nucleusflow.ui.theme.NucleusFlowTheme
 
 sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
@@ -33,21 +34,18 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     data object Memory : Screen("memory", "Memoria", Icons.Default.Storage)
     data object Integration : Screen("integration", "Integración", Icons.Default.Sync)
     data object Diag : Screen("diag", "Diagnóstico", Icons.Default.BugReport)
+    data object Cloud : Screen("cloud", "Nube", Icons.Default.Cloud)
+    data object Compute : Screen("compute", "Proceso", Icons.Default.Computer)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
-    override fun onResume() {
-        super.onResume()
-        ShizukuBridge.refresh()
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             NucleusFlowTheme {
                 val navController = rememberNavController()
-                val items = listOf(Screen.Home, Screen.Cores, Screen.Processes, Screen.PerApp, Screen.Memory, Screen.Integration, Screen.Diag)
+                val items = listOf(Screen.Home, Screen.Cores, Screen.Processes, Screen.PerApp, Screen.Memory, Screen.Integration, Screen.Diag, Screen.Cloud, Screen.Compute)
                 Scaffold(
                     topBar = { TopAppBar(title = { Text("NucleusFlow") }) },
                     bottomBar = {
@@ -79,6 +77,8 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Memory.route) { MemoryScreen() }
                         composable(Screen.Integration.route) { IntegrationScreen() }
                         composable(Screen.Diag.route) { DiagScreen() }
+                        composable(Screen.Cloud.route) { CloudScreen() }
+                        composable(Screen.Compute.route) { ComputeScreen() }
                     }
                 }
             }
