@@ -170,6 +170,16 @@ object ShizukuManager {
     }
 
     fun exec(cmd: String): String {
+        // Magisk edition: prefer Magisk privileged shell when Magisk is present
+        try {
+            if (MagiskManager.isMagisk()) {
+                val resp = MagiskManager.exec(cmd)
+                if (!resp.startsWith("ERR")) return resp
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "Magisk exec failed, falling back", e)
+        }
+
         // Try Shizuku UserService first
         try {
             val service = userService
