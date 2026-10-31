@@ -2,7 +2,7 @@ package com.nucleusflow.engine
 
 import android.content.Context
 import android.util.Log
-import androidx.security.keystore.EncryptedSharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import java.io.BufferedReader
 import java.io.InputStreamReader
