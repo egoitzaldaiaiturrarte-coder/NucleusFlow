@@ -18,6 +18,7 @@ local.properties
 secure/
 *.jks
 *.keystore
+*.p12
 
 # Logs
 *.log
