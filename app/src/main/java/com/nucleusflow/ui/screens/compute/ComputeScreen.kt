@@ -39,8 +39,8 @@ fun ComputeScreen() {
                 }
 
                 Switch(
-                    value = listenOnAllInterfaces,
-                    onValueChange = { AndroidComputeBridge.setListenOnAllInterfaces(it) },
+                    checked = listenOnAllInterfaces,
+                    onCheckedChange = { AndroidComputeBridge.setListenOnAllInterfaces(it) },
                     enabled = !isRunning
                 )
                 Text(
