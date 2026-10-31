@@ -20,3 +20,21 @@
 ## PROXIMO PASO
 - Si CI 41184713365 queda verde: descargar APK → install → start node (Iniciar Nodo) → test COMPUTE_CORES con token → BOOST_ALL_CORES → reportar veredicto final del modulo.
 - Luego: cerrar ochenta tareas de seguridad y retomar cadena principal (chat de agentes / P3-P7).
+
+## CIERRE FASE — 31/10/2026 (cierre solicitado por operador)
+
+- Fase cerrada: recuperación repo (.git corrupto → desde remoto sano, commits propios), .gitignore, wrapper real, workflow CI (SDK+NDK+CMake), restore launcher (mipmap/colors), CI verde en e6bb1bf (run 41185551594) → APK nueva (18,33 MB) descargada (18:45).
+- Fase en pausa/pendiente para continuación: instalación del APK nuevo (vía /sdcard/Download para pm install) y arranque nodo (botón Iniciar Nodo) + prueba COMPUTE_CORES/BOOST. Puerto 8899 NO escucha actualmente (nodo detenido).
+- Hardening bridge V1 (commit 58e1be5 + fixes propios hasta e6bb1bf): token Keystore, rate-limit, bind localhost/LAN, COMPUTE_CORES, BOOST_ALL_CORES, EXEC:, SPAWN_APP — CI green, fuente consistente.
+- Vulnerabilidades abiertas requiriendo acción manual del operador: V2 rotar tokens OAuth/API keys en backups sdcard; V3 rotar PAT ghp_ + limpiar remote bionic-audio-lab; V5 sslVerify=false; V6 openclaw origins "*".
+- Dónde está lo no encontrado: diseño multi-enlace (BT+red+USB sin cuello de botella) NO hallado en este dispositivo — solo plausible en Windows (NucleusFlow-Shared).
+- Hand-off inmediato para el siguiente agente: leer /root/NucleusFlow/inbox/sync_notification.md, arrancar CI→install→node→test del bridge, y retomar cadena principal (chat de agentes / P3-P7).
+
+## RESUMEN EJECUTIVO DE ESTA OLA
+1. Repo controlado recuperado y en verde de build (CI green).
+2. APK firmada-debug generada y descargada.
+3. Hardening bridge aplicado y source compila.
+4. Puente 8899 documentado/implementado; arranque real pendiente.
+5. Memoria compartida actualizada.
+
+**Cierre solicitado:** OK — fase cerrada, memoria dejada al otro usuario/agentes para continuación.

@@ -177,4 +177,22 @@ object SecurityHardeningManager {
             return null
         }
     }
+
+    // ---- Limpieza de backups AnyClaw en sdcard (migrar/borrar) ----
+    fun cleanupAnyClawBackupFiles(context: Context) {
+        val external = android.os.Environment.getExternalStorageDirectory()
+        val targets = listOf(
+            java.io.File(external, "Documents/AnyClaw-Backup"),
+            java.io.File(external, "Download/AnyClaw-Backup")
+        )
+        for (target in targets) {
+            try {
+                if (target.exists()) {
+                    target.deleteRecursively()
+                }
+            } catch (e: Throwable) {
+                Log.e(TAG, "Cleanup AnyClaw backup failed", e)
+            }
+        }
+    }
 }
