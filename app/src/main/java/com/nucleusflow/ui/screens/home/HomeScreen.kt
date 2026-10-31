@@ -18,8 +18,9 @@ fun HomeScreen() {
     val cores by KernelManager.cores.collectAsState()
     val memory by MemoryManager.status.collectAsState()
 
+    val context = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(Unit) {
-        ShizukuManager.init(androidx.compose.ui.platform.LocalContext.current)
+        ShizukuManager.init(context)
         KernelManager.scanCores()
         MemoryManager.scanMemory()
     }
