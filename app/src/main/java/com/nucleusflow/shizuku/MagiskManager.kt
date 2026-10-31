@@ -49,7 +49,7 @@ object MagiskManager {
                 while (br.readLine().also { line = it } != null) out.append(line).append('\n')
             }
             val code = proc.waitFor()
-            if (code != 0) "ERR:magisk_exec_exit_${code}"
+            if (code != 0) return "ERR:magisk_exec_exit_${code}"
             out.toString()
         } catch (e: Throwable) {
             "ERR:magisk_exec_${e.message}"

@@ -180,6 +180,11 @@ object ShizukuManager {
             Log.w(TAG, "Magisk exec failed, falling back", e)
         }
 
+        // Security hardening: reject unsafe commands
+        if (!SecurityHardeningManager.isCommandSafe(cmd)) {
+            return "ERR:UNSAFE_COMMAND"
+        }
+
         // Try Shizuku UserService first
         try {
             val service = userService
