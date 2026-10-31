@@ -34,6 +34,13 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Secret scan
+        run: |
+          if git grep -qE 'ghp_[A-Za-z0-9]{16,}|sk-[A-Za-z0-9]{16,}|eyJ[A-Za-z0-9_-]{16,}' HEAD -- .; then
+            echo "::error::Potential secret detected"
+            exit 1
+          fi
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
 
