@@ -38,3 +38,17 @@
 5. Memoria compartida actualizada.
 
 **Cierre solicitado:** OK — fase cerrada, memoria dejada al otro usuario/agentes para continuación.
+
+## DECISIONES DE DISEÑO — 31/10/2026 (cierre fase modulo+chat)
+- P3 (chat): TEXTO. A decisión del operador.
+- P7 (login): RESUELTO por diseño: chat single-user (solo él) → no requiere login entre usuarios; acceso restringido por clave + única entrada + verificación huella facial+fingerprint.
+- Modo de la app: bloqueo con clave, única pantalla/punto de entrada a agentes, ocultar apps relacionadas.
+
+## CIERRE DEFINITIVO DE ESTA FASE (solicitud operador: "Cerramos y dejamos memoria al otro usuario en 10 minutos")
+Pendiente inherente: instalación APK final (vía /sdcard/Download) + arranque nodo + prueba COMPUTE_CORES/BOOST.
+
+## CIERRE FINAL — 31/10/2026 (solicitud operador: "Perfecto deja constancia y dejalo blindado")
+
+- Constancia final: CI GREEN en main @ bab6b53 (run 41186381270, success) — HEAD limpio, sincronizado con origin/main.
+- Blindaje aplicado: .gitignore (*.p12, *.jks, *.keystore, secure/), secret scan CI (ghp_/sk-/eyJ), sslVerify global=true, V1 bridge (auth/rate-limit/bind/commands) compilando y CI green, cleanup backups sdcard.
+- Pendiente manual (operador): rotar PAT ghp_ (github settings tokens) + limpiar remote bionic-audio-lab (PAT en claro); prueba real adb forward + test-compute-bridge; definir origin real openclaw allowedOrigins.
