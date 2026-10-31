@@ -13,12 +13,12 @@ object SecurityHardeningManager {
     private const val TAG = "SecurityHardening"
 
     // ---- Configuración de endurecimiento ----
-    const val ALLOW_BACKUP_DISABLED = false
-    const val CLEARTEXT_TRAFFIC_DISABLED = false
+    val ALLOW_BACKUP_DISABLED = false
+    val CLEARTEXT_TRAFFIC_DISABLED = false
 
     // ---- Patrones prohibidos para ejecución de comandos (sanitización) ----
     private val DANGEROUS_PATTERNS = listOf(
-        ";", "&&", "||", "|", ">", "<", "`", "$(", "${", "rm ", "mv ", "cp ",
+        ";", "&&", "||", "|", ">", "<", "`", "\$(", "\${", "rm ", "mv ", "cp ",
         "chmod ", "chown ", "dd ", "mkfs ", "wipe", "mount ", "umount ", "mkfs.",
         "nc ", "ncat ", "curl ", "wget ", "bash ", "sh ", "python ", "perl ",
         "reboot", "poweroff", "init ", "systemctl ", "service "
