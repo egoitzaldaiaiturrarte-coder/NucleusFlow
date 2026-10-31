@@ -8,6 +8,6 @@ class NucleusApp : Application() {
     override fun onCreate() {
         super.onCreate()
         ShizukuManager.init(this)
-        AndroidComputeBridge.startComputeNode()
+        AndroidComputeBridge.startComputeNode(this)
     }
 }
