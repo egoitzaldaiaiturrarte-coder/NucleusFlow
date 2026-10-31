@@ -2,8 +2,8 @@ package com.nucleusflow.engine
 
 import android.content.Context
 import android.util.Log
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.keystore.MasterKey
+import androidx.security.keystore.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.InetAddress
@@ -71,8 +71,14 @@ object AndroidComputeBridge {
     }
 
     private fun getToken(context: Context): String {
-        val masterKey = MasterKey.Builder(context).setKeyScheme(MasterKey.AES256_GCM_SPEC).build()
-        val prefs = EncryptedSharedPreferences.create(context, "nucleus_compute_auth", masterKey)
+        val masterKey = MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
+        val prefs = EncryptedSharedPreferences.create(
+            context,
+            "nucleus_compute_auth",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
         val existing = prefs.getString("auth_token", null)
         if (!existing.isNullOrBlank()) return existing
         val bytes = ByteArray(32)
