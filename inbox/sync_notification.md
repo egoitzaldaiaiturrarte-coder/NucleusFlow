@@ -79,3 +79,9 @@ Pendiente inherente: instalación APK final (vía /sdcard/Download) + arranque n
 - Nuevo `MEMORY_POINTER[:url]`: el telefono guarda solo el enlace a Supabase (ver SHARED_MEMORY.md).
 - Documentacion: `engine/README.md`, `AGENT_HANDOFF.md`, `SHARED_MEMORY.md`.
 - Compilacion: pendiente de confirmar en este entorno (ver AGENT_HANDOFF / BUILD_STATUS).
+
+## CORRECCION DE TIRONES — 01/11/2026
+- Causas: SystemExecutor emitia un log por cada lectura (cientos por escaneo); scanCores se re-ejecutaba por cada nucleo en setters (O(n^2)); escaneos bloqueantes en hilo principal; emisiones de StateFlow con listas identicas.
+- Fixes: `SystemExecutor.quiet {}` (silencia logs masivos); KernelManager/ProcessManager emiten solo si cambia la lista; `setGovernor/setFrequencyRange(rescan=false)` + un unico scan; BOOST sin doble scan; rotacion silenciada; escaneos y acciones de UI movidos a `Dispatchers.IO`.
+- Fix de compilacion de agente paralelo: `CoreRotationManager` secuencia `List<CoreSnapshot>`.
+- CI GREEN en f314fa6 (run 41319171724).
