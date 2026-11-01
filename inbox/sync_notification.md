@@ -52,3 +52,10 @@ Pendiente inherente: instalación APK final (vía /sdcard/Download) + arranque n
 - Constancia final: CI GREEN en main @ bab6b53 (run 41186381270, success) — HEAD limpio, sincronizado con origin/main.
 - Blindaje aplicado: .gitignore (*.p12, *.jks, *.keystore, secure/), secret scan CI (ghp_/sk-/eyJ), sslVerify global=true, V1 bridge (auth/rate-limit/bind/commands) compilando y CI green, cleanup backups sdcard.
 - Pendiente manual (operador): rotar PAT ghp_ (github settings tokens) + limpiar remote bionic-audio-lab (PAT en claro); prueba real adb forward + test-compute-bridge; definir origin real openclaw allowedOrigins.
+
+## CIERRE COMPACTO — 01/11/2026
+- CI GREEN final: main @ 4dc6fb6 (run 41314811851, success). HEAD limpio, sync origin/main.
+- Recuperado de rojo por cambios paralelos: ChatManager.kt (imports flow) -> 8df6a1c; ChatScreen.kt (weight scope/ExperimentalMaterial3Api/RecognizerIntent) -> 4dc6fb6.
+- TAREA 10 (FASE C) COMPLETADA: openclaw.json gateway.controlUi.allowedOrigins = ["http://localhost:18789","http://127.0.0.1:18789"] (gateway_port 18789); token intacto; permisos 600; backup openclaw.json.bak-compact-*.
+- Pendiente manual: rotar PAT ghp_ + limpiar remote bionic-audio-lab; prueba real en dispositivo (adb forward + test-compute-bridge); purge .p12 (C9) solo si operador confirma.
+- "16 hilos extra": NO existe esa configuracion en el repo (solo governor/frecuencia por core y afinidad taskset). Requiere aclaracion del operador.
