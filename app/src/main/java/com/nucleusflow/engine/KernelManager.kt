@@ -38,6 +38,10 @@ object KernelManager {
     val clusters: StateFlow<List<CpuCluster>> = _clusters.asStateFlow()
 
     fun scanCores() {
+        SystemExecutor.quiet { scanCoresInternal() }
+    }
+
+    private fun scanCoresInternal() {
         val cpuDir = File("/sys/devices/system/cpu")
         if (!cpuDir.exists()) return
 
@@ -84,7 +88,7 @@ object KernelManager {
                 )
             )
         }
-        _cores.value = list
+        if (list != _cores.value) _cores.value = list
         buildClusters(list)
     }
 
@@ -108,13 +112,13 @@ object KernelManager {
                 )
             )
         }
-        _clusters.value = clusterList
+        if (clusterList != _clusters.value) _clusters.value = clusterList
     }
 
-    fun setGovernor(coreId: Int, governor: String): Boolean {
+    fun setGovernor(coreId: Int, governor: String, rescan: Boolean = true): Boolean {
         val path = "/sys/devices/system/cpu/cpu$coreId/cpufreq/scaling_governor"
         val success = SystemExecutor.writeFile(path, governor, "Cambiar Governor CPU $coreId")
-        if (success) scanCores()
+        if (success && rescan) scanCores()
         return success
     }
 
@@ -122,19 +126,20 @@ object KernelManager {
         val cluster = _clusters.value.find { it.clusterId == clusterId } ?: return false
         var allSuccess = true
         for (coreId in cluster.coreIds) {
-            if (!setGovernor(coreId, governor)) {
+            if (!setGovernor(coreId, governor, rescan = false)) {
                 allSuccess = false
             }
         }
+        scanCores()
         return allSuccess
     }
 
-    fun setFrequencyRange(coreId: Int, minFreq: Long, maxFreq: Long): Boolean {
+    fun setFrequencyRange(coreId: Int, minFreq: Long, maxFreq: Long, rescan: Boolean = true): Boolean {
         val pathMin = "/sys/devices/system/cpu/cpu$coreId/cpufreq/scaling_min_freq"
         val pathMax = "/sys/devices/system/cpu/cpu$coreId/cpufreq/scaling_max_freq"
         val s1 = SystemExecutor.writeFile(pathMin, minFreq.toString(), "CPU $coreId MinFreq")
         val s2 = SystemExecutor.writeFile(pathMax, maxFreq.toString(), "CPU $coreId MaxFreq")
-        scanCores()
+        if (rescan) scanCores()
         return s1 && s2
     }
 }

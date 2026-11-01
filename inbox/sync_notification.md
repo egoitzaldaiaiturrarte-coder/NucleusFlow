@@ -67,3 +67,15 @@ Pendiente inherente: instalación APK final (vía /sdcard/Download) + arranque n
 - Bridge: `PARTITION_STATUS`, `PARTITION_WRITE:<p>:<texto>`, `PARTITION_WRITE_ALL:<texto>`, `PARTITION_READ` (documentado en engine/README.md).
 - Ruta: `filesDir/nucleusflow_partitions/particion_0..3.dat`; registro `<ms>|core=<id>|<texto>`.
 - CI GREEN en b46e42e (run 41316321128).
+
+## ROTACION DE NUCLEOS 5+3 IMPLEMENTADA — 01/11/2026
+- `engine/CoreRotationManager.kt`: Grupo A = 5 nucleos de minFreq bajo (<=400 MHz, tipico 300)
+  con minimo elevado a 1200 MHz; Grupo B = 3 restantes. Turno de boost recorre A(5)+B(3)
+  en bucle, fijando el nucleo en turno a la frecuencia mas alta soportada <= 2200 MHz.
+- Dwell por defecto 12000 ms (rango 3000-60000). `STOP_ROTATION` restaura min/max originales.
+- Bridge: `START_ROTATION[:ms]`, `STOP_ROTATION`, `ROTATION_STATUS`.
+- UI: tarjeta de control en `CoresScreen` (estado, grupos, turno, MHz, ciclos, botones).
+- Memoria: turnos repartidos en las 4 particiones; eventos de ciclo en las 4.
+- Nuevo `MEMORY_POINTER[:url]`: el telefono guarda solo el enlace a Supabase (ver SHARED_MEMORY.md).
+- Documentacion: `engine/README.md`, `AGENT_HANDOFF.md`, `SHARED_MEMORY.md`.
+- Compilacion: pendiente de confirmar en este entorno (ver AGENT_HANDOFF / BUILD_STATUS).

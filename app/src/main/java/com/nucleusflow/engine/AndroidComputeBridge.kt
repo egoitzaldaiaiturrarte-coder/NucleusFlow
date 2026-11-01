@@ -133,10 +133,10 @@ object AndroidComputeBridge {
                     KernelManager.clusters.value.forEach { cluster ->
                         KernelManager.setClusterGovernor(cluster.clusterId, "performance")
                         cluster.coreIds.forEach { coreId ->
-                            KernelManager.setGovernor(coreId, "performance")
-                            KernelManager.setFrequencyRange(coreId, cluster.maxFreq, cluster.maxFreq)
+                            KernelManager.setFrequencyRange(coreId, cluster.maxFreq, cluster.maxFreq, rescan = false)
                         }
                     }
+                    KernelManager.scanCores()
                     MemoryManager.compactMemory()
                     "SUCCESS: All cores boosted to performance governor & memory compacted.\n"
                 }
@@ -168,6 +168,30 @@ object AndroidComputeBridge {
                 command == "PARTITION_READ" -> {
                     if (!SharedPartitionManager.isReady()) "ERR:PARTITIONS_NOT_READY\n"
                     else "SUCCESS:\n" + SharedPartitionManager.readUnified() + "\n"
+                }
+                command == "START_ROTATION" -> {
+                    if (CoreRotationManager.start()) "SUCCESS:Rotation started\n"
+                    else "ERR:ROTATION_START_FAILED\n"
+                }
+                command.startsWith("START_ROTATION:") -> {
+                    val dwell = command.removePrefix("START_ROTATION:").toLongOrNull()
+                        ?: CoreRotationManager.DEFAULT_DWELL_MS
+                    if (CoreRotationManager.start(dwell)) "SUCCESS:Rotation started dwellMs=$dwell\n"
+                    else "ERR:ROTATION_START_FAILED\n"
+                }
+                command == "STOP_ROTATION" -> {
+                    CoreRotationManager.stop()
+                    "SUCCESS:Rotation stopped, original frequencies restored\n"
+                }
+                command == "ROTATION_STATUS" -> CoreRotationManager.status()
+                command == "MEMORY_POINTER" -> {
+                    val pointer = SharedPartitionManager.getSupabasePointer()
+                    if (pointer == null) "ERR:NO_POINTER\n" else "SUCCESS:SUPABASE_POINTER=$pointer\n"
+                }
+                command.startsWith("MEMORY_POINTER:") -> {
+                    val url = command.removePrefix("MEMORY_POINTER:")
+                    if (SharedPartitionManager.setSupabasePointer(url)) "SUCCESS:Pointer stored\n"
+                    else "ERR:POINTER_STORE_FAILED\n"
                 }
                 else -> "UNKNOWN_COMMAND\n"
             }

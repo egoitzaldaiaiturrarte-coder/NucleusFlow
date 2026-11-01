@@ -25,6 +25,22 @@ object SystemExecutor {
     private val _logs = MutableStateFlow<List<ExecutionLog>>(emptyList())
     val logs: StateFlow<List<ExecutionLog>> = _logs.asStateFlow()
 
+    private val quietDepth = java.util.concurrent.atomic.AtomicInteger(0)
+
+    /**
+     * Ejecuta [block] sin emitir logs de sistema. Pensado para escaneos masivos
+     * (nucleos, procesos, memoria) que, de otro modo, generan cientos de
+     * emisiones de StateFlow y provocan tirones en la UI.
+     */
+    fun <T> quiet(block: () -> T): T {
+        quietDepth.incrementAndGet()
+        try {
+            return block()
+        } finally {
+            quietDepth.decrementAndGet()
+        }
+    }
+
     fun readFile(path: String, targetDesc: String = "Lectura archivo"): String {
         // Try native first if readable
         try {
@@ -89,6 +105,7 @@ object SystemExecutor {
     }
 
     private fun addLog(target: String, path: String, method: String, command: String, response: String, success: Boolean) {
+        if (quietDepth.get() > 0) return
         val log = ExecutionLog(
             target = target,
             path = path,

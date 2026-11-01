@@ -17,11 +17,15 @@ object SharedPartitionManager {
     const val PARTITION_COUNT = 4
     const val CORE_COUNT = 8
     const val ALL_CORES_MASK = 0xFFL
+    const val POINTER_PREFIX = "SUPABASE_POINTER"
 
     private val lock = Any()
 
     @Volatile
     private var baseDir: File? = null
+
+    @Volatile
+    private var supabasePointer: String? = null
 
     fun init(context: Context): Boolean {
         synchronized(lock) {
@@ -119,6 +123,27 @@ object SharedPartitionManager {
         val unifiedCount = if (unified.isEmpty()) 0 else unified.lines().size
         sb.append("unified_lines=").append(unifiedCount).append('\n')
         return sb.toString()
+    }
+
+    /**
+     * Politica de memoria: el telefono guarda solo el enlace (puntero) a Supabase.
+     * El contenido canonico vive en Supabase; las 4 particiones son el area de trabajo.
+     * Esta funcion no borra datos: solo registra/actualiza el puntero en las 4 particiones.
+     */
+    fun setSupabasePointer(url: String): Boolean {
+        if (url.isBlank()) return false
+        supabasePointer = url.trim()
+        return writeAll(0, "$POINTER_PREFIX|$supabasePointer|${System.currentTimeMillis()}")
+    }
+
+    fun getSupabasePointer(): String? {
+        supabasePointer?.let { return it }
+        if (baseDir == null) return null
+        val last = readUnified().lineSequence()
+            .lastOrNull { it.contains("|$POINTER_PREFIX|") }
+            ?: return null
+        val text = last.substringAfter("|core=").substringAfter("|", "")
+        return text.removePrefix(POINTER_PREFIX).removePrefix("|").substringBefore("|").ifBlank { null }
     }
 
     fun ensureAllCoresOnline(): Boolean {

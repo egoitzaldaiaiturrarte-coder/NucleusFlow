@@ -7,6 +7,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.nucleusflow.engine.*
 import com.nucleusflow.shizuku.ShizukuManager
 
@@ -17,12 +20,15 @@ fun HomeScreen() {
     val connectionMode by ShizukuManager.connectionMode.collectAsState()
     val cores by KernelManager.cores.collectAsState()
     val memory by MemoryManager.status.collectAsState()
+    val scope = rememberCoroutineScope()
 
     val context = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(Unit) {
-        ShizukuManager.init(context)
-        KernelManager.scanCores()
-        MemoryManager.scanMemory()
+        withContext(Dispatchers.IO) {
+            ShizukuManager.init(context)
+            KernelManager.scanCores()
+            MemoryManager.scanMemory()
+        }
     }
 
     Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -50,13 +56,13 @@ fun HomeScreen() {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 modifier = Modifier.weight(1f),
-                onClick = { SnapshotManager.createSnapshot() }
+                onClick = { scope.launch { withContext(Dispatchers.IO) { SnapshotManager.createSnapshot() } } }
             ) {
                 Text("Crear Snapshot")
             }
             Button(
                 modifier = Modifier.weight(1f),
-                onClick = { SnapshotManager.restoreSnapshot() }
+                onClick = { scope.launch { withContext(Dispatchers.IO) { SnapshotManager.restoreSnapshot() } } }
             ) {
                 Text("Restaurar")
             }

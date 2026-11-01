@@ -7,15 +7,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.nucleusflow.engine.ProcessManager
 
 @Composable
 fun ProcessesScreen() {
     val processes by ProcessManager.processes.collectAsState()
     var filterText by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
-        ProcessManager.scanProcesses()
+        withContext(Dispatchers.IO) {
+            ProcessManager.scanProcesses()
+        }
     }
 
     Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -41,7 +47,7 @@ fun ProcessesScreen() {
                     Text("Paquete: ${proc.packageName}", style = MaterialTheme.typography.bodySmall)
                     Text("OOM Score Adj: ${proc.oomScoreAdj} • Hilos: ${proc.threads.size}", style = MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { ProcessManager.setOomScoreAdj(proc.pid, -1000) }) {
+                        Button(onClick = { scope.launch { withContext(Dispatchers.IO) { ProcessManager.setOomScoreAdj(proc.pid, -1000) } } }) {
                             Text("Priorizar (-1000)")
                         }
                     }

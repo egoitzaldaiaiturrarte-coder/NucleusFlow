@@ -26,6 +26,10 @@ object ProcessManager {
     val processes: StateFlow<List<ProcessInfo>> = _processes.asStateFlow()
 
     fun scanProcesses() {
+        SystemExecutor.quiet { scanProcessesInternal() }
+    }
+
+    private fun scanProcessesInternal() {
         val procDir = File("/proc")
         if (!procDir.exists()) return
 
@@ -81,7 +85,8 @@ object ProcessManager {
                 )
             )
         }
-        _processes.value = list.sortedBy { it.name }
+        val sorted = list.sortedBy { it.name }
+        if (sorted != _processes.value) _processes.value = sorted
     }
 
     fun setProcessAffinity(pid: Int, mask: Long): Boolean {

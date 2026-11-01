@@ -7,14 +7,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.nucleusflow.engine.MemoryManager
 
 @Composable
 fun MemoryScreen() {
     val memory by MemoryManager.status.collectAsState()
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
-        MemoryManager.scanMemory()
+        withContext(Dispatchers.IO) {
+            MemoryManager.scanMemory()
+        }
     }
 
     Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -34,13 +40,13 @@ fun MemoryScreen() {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 modifier = Modifier.weight(1f),
-                onClick = { MemoryManager.compactMemory() }
+                onClick = { scope.launch { withContext(Dispatchers.IO) { MemoryManager.compactMemory() } } }
             ) {
                 Text("Compactar Memoria")
             }
             Button(
                 modifier = Modifier.weight(1f),
-                onClick = { MemoryManager.pushToZram() }
+                onClick = { scope.launch { withContext(Dispatchers.IO) { MemoryManager.pushToZram() } } }
             ) {
                 Text("Liberar Caches")
             }
