@@ -77,7 +77,13 @@ object CoreRotationManager {
         }
 
         val dwell = dwellMs.coerceIn(MIN_DWELL_MS, MAX_DWELL_MS)
-        val sequence = groupA + groupB
+        val byId = snapshots.associateBy { it.id }
+        val sequence = (groupA + groupB).mapNotNull { byId[it] }
+        if (sequence.isEmpty()) {
+            _state.value = _state.value.copy(lastError = "Secuencia de rotacion vacia")
+            logAndShare("ROTATION_ERROR secuencia vacia")
+            return false
+        }
         lastSnapshot = snapshots
         _state.value = CoreRotationState(
             isRunning = true,
