@@ -22,10 +22,14 @@ AUTH:<token>:<COMMAND>
 
 | Comando | Descripcion | Respuesta |
 |---|---|---|
-| `COMPUTE_CORES` | Devuelve el numero de nucleos disponibles | `SUCCESS:CoreCount:<n>` |
+| `COMPUTE_CORES` | Devuelve el numero de nucleos disponibles | `SUCCESS:CoreCount=<n>` |
 | `BOOST_ALL_CORES` | Fuerza governor `performance` y sube `scaling_min_freq`/`scaling_max_freq` de todos los `cpu*` + compacta memoria | `SUCCESS: ...` |
 | `SPAWN_APP:<component>` | Lanza app/proceso con `am start -n <component>` via Shizuku | `SUCCESS: ...` |
 | `EXEC:<cmd>` | Ejecuta comando del sistema via Shizuku/SystemExecutor | `SUCCESS: ...` |
+| `PARTITION_STATUS` | Estado de las 4 particiones (lineas, bytes, total unificado) | `PARTITIONS=4 CORES=8 AFFINITY=0xff...` |
+| `PARTITION_WRITE:<p>:<texto>` | Escribe en la particion `p` (0-3) | `SUCCESS:Written to partition <p>` |
+| `PARTITION_WRITE_ALL:<texto>` | Escribe el mismo texto en las 4 particiones | `SUCCESS:Written to 4 partitions` |
+| `PARTITION_READ` | Lectura unificada de las 4 particiones (orden por timestamp, sin duplicados) | `SUCCESS:\n<registros>` |
 
 ## Autenticacion y rate-limit
 
@@ -47,3 +51,11 @@ adb forward tcp:8899 tcp:8899
 ```
 
 Script de prueba: `test-compute-bridge.ps1`.
+
+## Particiones compartidas (4)
+
+- 4 particiones (`particion_0..3.dat`) siempre activas desde el arranque (`SharedPartitionManager.init`).
+- Escritura: las 4 son escribibles y accesibles desde los 8 cores (`ALL_CORES_MASK = 0xFF`).
+- Lectura: `PARTITION_READ` devuelve la union unificada de las 4, ordenada por timestamp y sin duplicados.
+- Al iniciar se intenta poner online los 8 cores y fijar la afinidad del proceso a los 8 cores.
+- Ruta base: `filesDir/nucleusflow_partitions` (app-privada). Formato de registro: `<ms>|core=<id>|<texto>`.

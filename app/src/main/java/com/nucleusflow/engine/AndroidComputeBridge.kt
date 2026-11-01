@@ -149,6 +149,26 @@ object AndroidComputeBridge {
                     val cmd = "am start -n $pkg"
                     SystemExecutor.executeCommand(cmd, "Remote App Spawn")
                 }
+                command == "PARTITION_STATUS" -> SharedPartitionManager.status()
+                command.startsWith("PARTITION_WRITE_ALL:") -> {
+                    val text = command.removePrefix("PARTITION_WRITE_ALL:")
+                    if (SharedPartitionManager.writeAll(0, text)) "SUCCESS:Written to 4 partitions\n" else "ERR:PARTITION_WRITE_FAILED\n"
+                }
+                command.startsWith("PARTITION_WRITE:") -> {
+                    val rest = command.removePrefix("PARTITION_WRITE:")
+                    val idx = rest.indexOf(':')
+                    if (idx <= 0) {
+                        "ERR:PARTITION_FORMAT\n"
+                    } else {
+                        val p = rest.substring(0, idx).toIntOrNull()
+                        val text = rest.substring(idx + 1)
+                        if (p != null && SharedPartitionManager.write(p, 0, text)) "SUCCESS:Written to partition $p\n" else "ERR:PARTITION_WRITE_FAILED\n"
+                    }
+                }
+                command == "PARTITION_READ" -> {
+                    if (!SharedPartitionManager.isReady()) "ERR:PARTITIONS_NOT_READY\n"
+                    else "SUCCESS:\n" + SharedPartitionManager.readUnified() + "\n"
+                }
                 else -> "UNKNOWN_COMMAND\n"
             }
         }
