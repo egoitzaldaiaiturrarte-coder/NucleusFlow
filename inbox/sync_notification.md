@@ -59,3 +59,11 @@ Pendiente inherente: instalación APK final (vía /sdcard/Download) + arranque n
 - TAREA 10 (FASE C) COMPLETADA: openclaw.json gateway.controlUi.allowedOrigins = ["http://localhost:18789","http://127.0.0.1:18789"] (gateway_port 18789); token intacto; permisos 600; backup openclaw.json.bak-compact-*.
 - Pendiente manual: rotar PAT ghp_ + limpiar remote bionic-audio-lab; prueba real en dispositivo (adb forward + test-compute-bridge); purge .p12 (C9) solo si operador confirma.
 - "16 hilos extra": NO existe esa configuracion en el repo (solo governor/frecuencia por core y afinidad taskset). Requiere aclaracion del operador.
+
+## PARTICIONES COMPARTIDAS (4) — 01/11/2026
+- Implementado `engine/SharedPartitionManager.kt`: 4 particiones siempre activas desde `NucleusApp.onCreate`.
+- Escritura: las 4 escribibles por los 8 cores (afinidad del proceso a mask 0xFF; intento de online cpu0..7).
+- Lectura: unificada de las 4 (`readUnified()`: merge por timestamp, sin duplicados).
+- Bridge: `PARTITION_STATUS`, `PARTITION_WRITE:<p>:<texto>`, `PARTITION_WRITE_ALL:<texto>`, `PARTITION_READ` (documentado en engine/README.md).
+- Ruta: `filesDir/nucleusflow_partitions/particion_0..3.dat`; registro `<ms>|core=<id>|<texto>`.
+- CI GREEN en b46e42e (run 41316321128).
