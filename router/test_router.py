@@ -87,7 +87,98 @@ class Client:
             pass
 
 
+def test_bootstrap():
+    """== 0) Bootstrap: config sin token + origen permitido => el nodo
+    Android ESTABLECE el token (AUTH:OK:BOOTSTRAP). Configura un fichero
+    de config propio (nucleus_router.boot.json) y un router en 41100."""
+    print("== 0) Bootstrap: el nodo Android establece el token ==")
+    bport = 41100
+    bcfg = HERE / "nucleus_router.boot.json"
+    boot_tok = ("a1b2" * 16)  # 64 hex
+    if not boot_tok[0].islower() or len(boot_tok) != 64:
+        raise RuntimeError("token de prueba malformado")
+    # Estado fresco cada vez que corre el test (sobreescribe re-execuciones).
+    bcfg.write_text(json.dumps({"port": bport, "host": "127.0.0.1",
+                                "token": "", "bootstrap_ips": ["127.0.0.1"]}))
+    os.environ["NUCLEUS_ROUTER_CONFIG"] = str(bcfg)
+
+    import socket as _socket
+    try:
+        _p = _socket.socket()
+        _p.bind(("127.0.0.1", bport))
+        _p.close()
+    except OSError as e:
+        print(f"ABORT: puerto {bport} ocupado ({e}); mata el zombi y relanza.")
+        sys.exit(2)
+
+    dbg = open(HERE / "router-boot-stdout.txt", "wb")
+    router = subprocess.Popen(
+        [sys.executable, str(HERE / "nucleus_router.py")],
+        stdout=dbg, stderr=subprocess.STDOUT, cwd=str(HERE),
+    )
+    try:
+        time.sleep(1.2)
+        if router.poll() is not None:
+            print("ABORT: router bootstrap murio: ----\n"
+                  + (HERE / "router-boot-stdout.txt").read_text(
+                      encoding="utf-8", errors="replace"))
+            sys.exit(2)
+
+        ph = Client(bport, "boot-phone")
+        ph.send("AUTH:123")  # malformado (no 64 hex) desde origen permitido
+        check("bootstrap: token malformado rechazado",
+              ph.read_until("ERR:").startswith("ERR:AUTH"))
+        ph.send("AUTH:" + boot_tok)
+        r = ph.read_until("AUTH:OK")
+        check("bootstrap aplicado (AUTH:OK:BOOTSTRAP)", r == "AUTH:OK:BOOTSTRAP", r)
+        ondisk = json.loads(bcfg.read_text())
+        check("token persistido en config", ondisk.get("token") == boot_tok)
+        ph.send("STATUS")
+        check("cliente autenticado tras bootstrap",
+              ph.read_until("STATUS:") != "")
+        ph.close()
+
+        # --- comprobaciones unitarias de bootstrap_token, en un HIJO: el
+        # import del modulo deja un FileHandler abierto en log/router.log
+        # dentro de ESTE proceso y en Windows bloquearia el rmtree de main().
+        unit_src = (
+            "import importlib.util, json\n"
+            "spec = importlib.util.spec_from_file_location('m', %s)\n"
+            "mod = importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(mod)\n"
+            "a = mod.bootstrap_token('0' * 64, '127.0.0.1')\n"
+            "mod.CFG['token'] = ''\n"
+            "b = mod.bootstrap_token('0' * 64, '8.8.8.8')\n"
+            "c = mod.bootstrap_token('xyz', '127.0.0.1')\n"
+            "print(json.dumps([a, b, c]))\n"
+        ) % json.dumps(str(HERE / "nucleus_router.py"))
+        up = subprocess.run([sys.executable, "-c", unit_src],
+                           capture_output=True, text=True, timeout=60)
+        try:
+            unit_res = json.loads(up.stdout.strip().splitlines()[-1])
+        except Exception:
+            unit_res = None
+        detail = (up.stdout or up.stderr)[-200:]
+        check("unit: token ya puesto => bootstrap no",
+              unit_res is not None and unit_res[0] is False, detail)
+        check("unit: origen no permitido => no",
+              unit_res is not None and unit_res[1] is False)
+        check("unit: formato no 64hex => no",
+              unit_res is not None and unit_res[2] is False)
+    finally:
+        router.terminate()
+        try:
+            router.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            router.kill()
+        dbg.close()
+    # dejar bcfg con token vacio para que no interfiera en la fase principal
+    bcfg.write_text(json.dumps({"port": bport, "host": "127.0.0.1",
+                                "token": "", "bootstrap_ips": []}))
+
+
 def main():
+    test_bootstrap()
     # --- limpiar datos de pruebas anteriores
     data = HERE / "test-data"
     if data.exists():

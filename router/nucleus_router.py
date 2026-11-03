@@ -18,6 +18,11 @@ se ENRUTA aquí, y de aquí a cada agente del ecosistema:
 
 Protocolo (lineas \n, mismo estilo que AndroidComputeBridge):
     AUTH:<token>                 -> AUTH:OK  / ERR:AUTH
+                                     (bootstrap: si el token en config esta
+                                      vacio y el origen esta en bootstrap_ips,
+                                      el nodo Android establece el token ->
+                                      AUTH:OK:BOOTSTRAP; se guarda en la
+                                      config local, el valor no sale de aqui)
     PING                         -> PONG
     STATUS                       -> STATUS:agents=...|inbox=...|outbox=...
     ROUTER agent=<a> text=<t>   -> Routed: <a>|<estado>
@@ -41,6 +46,7 @@ Datos (misma carpeta, editables a mano; los agentes pueden leerlos libremente):
 Sin dependencias: solo librería estándar de Python 3.
 """
 
+import hashlib
 import hmac
 import json
 import logging
@@ -71,6 +77,11 @@ DEFAULT_CONFIG = {
     "port": 41050,
     "host": "0.0.0.0",
     "token": "",   # el usuario pega aqui el token del nodo Android (64 hex)
+    # Arranque sin friccion: si "token" esta vacio, solo los orígenes de esta
+    # lista (IPs del tailnet del usuario) pueden ESTABLECER el token con
+    # AUTH:<token>. Tras el primer bootstrap el campo deja de aplicarse.
+    # Vacio por defecto = sin bootstrap posible.
+    "bootstrap_ips": [],
 }
 
 
@@ -116,6 +127,36 @@ def write_json(dirpath: Path, agent: str, msg: dict) -> Path:
     p = dirpath / f"{msg['id']}-{agent}.json"
     p.write_text(json.dumps(msg, ensure_ascii=False, indent=1), encoding="utf-8")
     return p
+
+
+HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def bootstrap_token(given: str, peer_ip: str) -> bool:
+    """Bootstrap: config sin token + origen confiable => el nodo Android
+    establece el token. El valor solo se escribe en la config local
+    (nucleus_router.json, del usuario); el log guarda largo + SHA-256.
+    Devuelve True si el bootstrap se aplico (y el cliente queda autenticado).
+    """
+    if CFG.get("token"):
+        return False  # el bootstrap solo aplica con el campo vacio
+    allowed = CFG.get("bootstrap_ips") or []
+    if not allowed or peer_ip not in allowed:
+        return False
+    if not isinstance(given, str) or not HEX64_RE.match(given):
+        return False
+    new_cfg = dict(CFG)
+    new_cfg["token"] = given
+    tmp = CONFIG_PATH.with_name(CONFIG_PATH.name + ".tmp")
+    tmp.write_text(json.dumps(new_cfg, ensure_ascii=False, indent=1),
+                   encoding="utf-8")
+    os.replace(tmp, CONFIG_PATH)
+    CFG.clear()
+    CFG.update(new_cfg)
+    digest = hashlib.sha256(given.encode()).hexdigest()
+    log.warning("TOKEN BOOTSTRAP desde %s: len=%d sha256=%s (solo en %s)",
+                peer_ip, len(given), digest[:16], CONFIG_PATH.name)
+    return True
 
 
 # ------------------------------------------------------------ routing core ---
@@ -186,6 +227,10 @@ def handle_line(conn: "RouterHandler", line: str) -> list[str]:
             conn.authed = True
             conn.failures = 0
             out.append("AUTH:OK")
+        elif not CFG.get("token") and bootstrap_token(given, conn.peer[0]):
+            conn.authed = True
+            conn.failures = 0
+            out.append("AUTH:OK:BOOTSTRAP")
         else:
             conn.failures += 1
             if conn.failures >= MAX_AUTH_FAILURES:
@@ -289,8 +334,11 @@ def main():
     port = int(CFG.get("port", 41050))
     host = str(CFG.get("host", "0.0.0.0"))
     if not CFG.get("token"):
-        log.warning("SIN token en %s: el router rechaza todo AUTH "
-                    "(pega el token del nodo Android y relanza).", CONFIG_PATH.name)
+        bips = CFG.get("bootstrap_ips") or []
+        log.warning("SIN token en %s: el router rechaza todo AUTH. "
+                    "Opciones: (1) el usuario pega el token del nodo Android y "
+                    "relanza; (2) bootstrap_ips=%s: el nodo Android lo establece "
+                    "solo el primer vez con AUTH:<token>.", CONFIG_PATH.name, bips)
     srv = Server((host, port), RouterHandler)
     log.info("nucleus_router escuchando en %s:%d (agentes: %s)",
              host, port, ",".join(AGENTS))
