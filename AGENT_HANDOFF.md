@@ -1,7 +1,9 @@
 # HANDOFF — NucleusFlow (Estado de la sesión)
 
 ## Agente actual
-opencode (big-pickle). Sesión cerrada. Trabajo dejado implementado y compilable.
+hermes (Maestro / chief systems engineer). Sesión 2026-11-03: plano de control
+del chat (v1.11.1). Lo anterior (rotación de núcleos) quedó implementado por
+opencode (big-pickle) y se conserva intacto.
 
 ## Qué se pidió (resumen)
 Motor 8 núcleos / 12 hilos / 4 particiones.
@@ -56,3 +58,56 @@ unificada (`PARTITION_READ`) ordena por timestamp y elimina duplicados.
 - Dwell recomendado 12 s: suficiente para notar el boost sin castigar térmica/batería.
 - No reducir el dwell por debajo de 3 s (evita thrashing de governor y logs).
 - Para recuperar el equipo: `STOP_ROTATION` garantiza restauración de valores originales.
+
+## PLANO DE CONTROL — el chat dirige agentes (v1.11.1, 2026-11-03)
+
+El chat de la app deja de ser un cartón y se convierte en el punto de
+entrada al ecosistema: cada mensaje se ENRUTA a un agente y las respuestas
+vuelven al chat.
+
+### Lado PC (Windows, este PC)
+- `router/nucleus_router.py` — router TCP (solo stdlib de Python 3), puerto
+  **41050**. Config: `nucleus_router.json` (mismo directorio):
+  `{"port":41050,"host":"0.0.0.0","token":"<64 hex del nodo Android>"}`.
+  Token = el MISMO del nodo de cómputo (Keystore del móvil; lo ve
+  ComputeScreen). El usuario lo pega una vez en el JSON; nunca viaja en
+  código (misma política que el adb forward actual).
+- Datos (editables, los agentes pueden leerlos libremente):
+  - `router/inbox/<agente>/*.json` — mensajes del chat dirigidos al agente:
+    `hermes` (Hermes en el PC; lo consume un cron de bucle y responde),
+    `web` (tareas para los agentes de la bus Supabase), `windows` (agentes
+    locales futuros), `phone` (solo se confirma; lo resuelve el móvil).
+  - `router/inbox/<agente>/done/` — procesados.
+  - `router/outbox/phone/*.json` — respuestas del router al chat del móvil;
+    el móvil las recoge con `POLL` (store & forward: si el móvil se
+    desconecta, quedan en espera y viajan en el próximo POLL).
+- Protocolo (lineas, mismo estilo que el bridge):
+  `AUTH:<token>` / `PING` / `STATUS` /
+  `ROUTER agent=<a> text=<t>` → `ROUTED:<a>|queued|local` /
+  `POLL` → `PUSH from=<a> text=<t>*` + `POLL:END|POLL:EMPTY` /
+  `SYNC|CHAT_MSG|...` (cola del móvil tras reinicio).
+- Arranque: `python nucleus_router.py` (o `run_router.bat` si se crea).
+- Verificación: `python router/test_router.py` — loopback completo contra el
+  router REAL (auth, ruteo hermes/web/phone/*, sync, poll/push, outbox):
+  24/24 OK en 2026-11-03.
+
+### Lado móvil (NucleusFlow app)
+- `engine/RouterLink.kt` — cliente TCP del router: auth, reconexión con
+  backoff (2s→30s), cola de salida, `POLL` al reconectar (nada se pierde),
+  callbacks `onPush/onConnected/onDisconnected`. Token leído del Keystore
+  (mismo que el bridge; si no existe, la pantalla avisa "arranca el nodo").
+- `engine/ChatManager.kt` — reescrito: `send(text, agent)` enruta por el
+  plano si hay enlace; si no, encola (persistido en prefs) y re-envía como
+  `SYNC|...` al reconectar. `handlePush` muestra la respuesta del agente y
+  la espeja en las 4 particiones (bus Supabase) como antes.
+- `ui/screens/chat/ChatScreen.kt` — fila de agentes (hermes/web/windows/
+  phone/*) + bloque "Plano (PC)" (IP + Conectar/Desconectar + estado).
+
+### Reglas de la capa
+- El móvil solo ESCRIBE en la bus por la vía de siempre (particiones +
+  supabase pointer); el router del PC NUNCA escribe en Supabase (la cuenta
+  del PC es read-only en la bus).
+- Claves/tokens: solo en dispositivos del usuario (Keystore del móvil,
+  nucleus_router.json del PC). Nunca en el chat, en el repo ni en la bus.
+- El agente `hermes` se consume desde el cron de Hermes en el PC (lee
+  `router/inbox/hermes/`, escribe la respuesta en `router/outbox/phone/`).

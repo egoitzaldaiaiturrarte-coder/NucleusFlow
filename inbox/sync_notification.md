@@ -85,3 +85,19 @@ Pendiente inherente: instalación APK final (vía /sdcard/Download) + arranque n
 - Fixes: `SystemExecutor.quiet {}` (silencia logs masivos); KernelManager/ProcessManager emiten solo si cambia la lista; `setGovernor/setFrequencyRange(rescan=false)` + un unico scan; BOOST sin doble scan; rotacion silenciada; escaneos y acciones de UI movidos a `Dispatchers.IO`.
 - Fix de compilacion de agente paralelo: `CoreRotationManager` secuencia `List<CoreSnapshot>`.
 - CI GREEN en f314fa6 (run 41319171724).
+
+## PLANO DE CONTROL — CHAT COMO PUNTO DE ENTRADA — 03/11/2026 (v1.11.1)
+- El chat NucleusFlow deja de ser un cartón: cada mensaje se ENRUTA a un agente
+  (hermes/web/windows/phone/*) y las respuestas vuelven al chat.
+- Lado PC: `router/nucleus_router.py` (Python stdlib, TCP 41050) — auth por
+  token del nodo, `ROUTER/POLL/SYNC/STATUS`; datos en `router/inbox/<agente>/`
+  y `router/outbox/phone/` (store & forward). Test loopback `router/test_router.py`:
+  24/24 OK contra el router real.
+- Lado móvil: `engine/RouterLink.kt` (cliente: auth, reconexión 2s→30s, cola),
+  `engine/ChatManager.kt` (enrutado + cola persistente + espejo en particiones),
+  `ChatScreen.kt` (fila de agentes + bloque "Plano (PC)").
+- Token del plano = el del nodo de cómputo (Keystore del móvil); en el PC se pega
+  una vez en `nucleus_router.json`. Nunca en el repo ni en la bus.
+- Hermes (PC) consume `router/inbox/hermes/` por cron y responde a
+  `router/outbox/phone/`; el móvil lo recoge con POLL.
+- Detalles: `AGENT_HANDOFF.md` (sección PLANO DE CONTROL).
